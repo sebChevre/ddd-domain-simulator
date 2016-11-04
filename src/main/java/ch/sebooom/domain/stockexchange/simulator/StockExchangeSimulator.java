@@ -1,9 +1,8 @@
 package ch.sebooom.domain.stockexchange.simulator;
 
+import ch.sebooom.domain.stockexchange.StockExchangeEntity;
 import ch.sebooom.domain.stockexchange.matierespremieres.MatierePremiere;
-import ch.sebooom.domain.stockexchange.prix.Operation;
 import ch.sebooom.domain.stockexchange.prix.Prix;
-import ch.sebooom.domain.stockexchange.prix.Variation;
 import com.google.common.base.Preconditions;
 import rx.Observable;
 
@@ -13,42 +12,32 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.toList;
 
 public class StockExchangeSimulator {
 
-	//Entite a traiter
-	private List<SimulatorItemWrapper> wrappers;
+	//Entites a traiter
+	private List<SimulatorItem> entities;
 
-	//nbre d'occurence pour une operation
-	private int nbreOperationSeries;
-	//L'opération active
-	private Operation operation;
 	//Etat du simulator
-	private Boolean running = Boolean.FALSE;
+	private Boolean running = Boolean.TRUE;
 	
-	//Ecart max extremes
-	private static final double MIN_FACTOR = 0.5;
-	private static final double MAX_FACTOR = 1.6;
-
-	//pourcentage max de variation par rapport au prix initial
-	private static final int MAX_VARIATION_FACTOR = 5;
-	//Nombre d'occurence d'une opération, nbre de fois une opération
-	private static final int MAX_VARIATION_SERIES = 5;
+	//max et min sleep entre chaque emission
 	private static final int MIN_SLEEP_MS = 20;
 	private static final int MAX_SLEEP_MS = 500;
 	
 	
-	public StockExchangeSimulator(SimulatorItemWrapper wrapper){
+	public StockExchangeSimulator(SimulatorItem wrapper){
 		Preconditions.checkNotNull(wrapper);
 		Preconditions.checkNotNull(wrapper.getEntity());
-		this.wrappers = Arrays.asList(wrapper);
+		this.entities = Arrays.asList(wrapper);
 
 	}
 
-	public StockExchangeSimulator(List<SimulatorItemWrapper> wrappers){
+	public StockExchangeSimulator(List<SimulatorItem> wrappers){
 		Preconditions.checkNotNull(wrappers);
-		this.wrappers = new ArrayList<>(wrappers);
+	    this.entities = new ArrayList<>(wrappers);
 
 	}
 
@@ -56,117 +45,64 @@ public class StockExchangeSimulator {
 	
 	public static void main(String[] args) {
 		MatierePremiere mat = new MatierePremiere("Pétrole","",Prix.from(10.99));
+		MatierePremiere m2 = new MatierePremiere("Test","",Prix.from(101.10));
 
-		SimulatorItemWrapper w = SimulatorItemWrapper.from(mat);
-		StockExchangeSimulator sim = new StockExchangeSimulator(w);
+		SimulatorItem w = SimulatorItem.from(new MatierePremiere("Pétrole","",Prix.from(10.99)));
+		SimulatorItem w1 = SimulatorItem.from(new MatierePremiere("Test","",Prix.from(101.10)));
+
+		StockExchangeSimulator sim = new StockExchangeSimulator(Arrays.asList(w,w1));
 		
 		sim.start()
-				//.flatMap(observable -> Observable.just(observable))
-				.flatMap(observable -> Observable.just(observable))
-				.subscribe(next -> System.out.println(next),
-				error -> error.printStackTrace(),
-				()-> System.out.println("Completeh"));
+			.subscribe(
+				next -> {System.out.println(next);},
+				error -> {},
+				()->{}
+			);
 	}
-	
-	public Observable<Observable> start(){
-		
-		//init 
-		nbreOperationSeries = SimulatorUtil.getRandomIntBeetween(0, MAX_VARIATION_SERIES);
-		operation = SimulatorUtil.getRandomOperation();
-		running = Boolean.TRUE;
 
-		List<Observable> obs = wrappers.stream()
-				.map(wrapper -> {
-					return Observable.create(observer -> {
+	public Observable<SimulatorItem> start () {
 
+		List<Observable<SimulatorItem>> itemObservables = entities.stream()
 
-						ExecutorService service = Executors.newSingleThreadExecutor();
+			.map(itemSimulator -> {
+
+				return Observable.<SimulatorItem>create(observer->{
+
+					StockExchangeEntity entity = itemSimulator.getEntity();
+
+					ExecutorService service = Executors.newSingleThreadExecutor();
 
 						service.submit(() -> {
 
-							try {
-								while(running){
-									TimeUnit.MILLISECONDS.sleep(SimulatorUtil.getRandomIntBeetween(MIN_SLEEP_MS, MAX_SLEEP_MS));
+							while(running){
 
-									double variationPrix = variation();
-									double newPrix = next(wrapper);
+								try {
 
+									randomSleep();
 
-									wrapper.getEntity().updatePrix(newPrix);
-									wrapper.updateVariation(Variation.from(operation,variationPrix));
-									observer.onNext(wrapper);
+									observer.onNext(itemSimulator);
+
+									itemSimulator.updatePrix();
+
+								} catch (InterruptedException e) {
+									e.printStackTrace();
 								}
-
-							} catch (InterruptedException e) {
-								observer.onError(e);
 							}
 						});
 					});
 				})
-				.collect(Collectors.toList());
+				.collect(toList());
+
+		return Observable.merge(itemObservables);
+	}
+
+	private void randomSleep() throws InterruptedException {
+		TimeUnit.MILLISECONDS.sleep(SimulatorUtil.getRandomIntBeetween(MIN_SLEEP_MS, MAX_SLEEP_MS));
+	}
 
 
-			
-		return Observable.from(obs);//.flatMap(observable -> Observable.just(observable).flatMap(obsa -> Observable.just(obsa)));
-		
-	} 
+
 	
-	private static double variation () {
-		return SimulatorUtil.getRandomDoubleBeetween(1, MAX_VARIATION_FACTOR)/100d;
-	}
-	
-	private double next(SimulatorItemWrapper wrapper){
-		
-		double newPrix = 0;
-		double variation = variation();
-		
-	
-		if(nbreOperationSeries == 0){
-			nbreOperationSeries = SimulatorUtil.getRandomIntBeetween(0, MAX_VARIATION_SERIES);
-		}
-		
-		if(checkIfEcartFromInitialValueOutBound(wrapper)){
-			operation = SimulatorUtil.inverse(operation);
-			
-		}else{
-			if(nbreOperationSeries == 0){
-				operation = SimulatorUtil.getRandomOperation();
-			}
-		}
-		
-		
-		double initPrix = wrapper.prixInitial().valeur().doubleValue();
-		double lastPrix = wrapper.getEntity().prix().valeur().doubleValue();
-		
-		
-		switch(operation){
-			case ADD:
-				newPrix = lastPrix + (initPrix * variation);
-				System.out.println("ADD:");
-			break;
-				
-			case SUBSTRACT: 
-				newPrix = lastPrix - (initPrix * variation);
-				System.out.println("SUBTRACT:");
-			break;
-			
-			default: throw new IllegalArgumentException();
-		}
-		
-		nbreOperationSeries --;
-		
-		
-		return newPrix;
-	
-	}
-	
-	
-	private static boolean checkIfEcartFromInitialValueOutBound (SimulatorItemWrapper wrapper) {
-		double lastValue = wrapper.getEntity().prix().valeur().doubleValue();
-		double initValue = wrapper.prixInitial().valeur().doubleValue();
-		double ecartFromInitial = lastValue/initValue;
-		
-		return ecartFromInitial > MAX_FACTOR || ecartFromInitial < MIN_FACTOR;
-	}
+
 
 }
