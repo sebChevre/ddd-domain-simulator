@@ -1,6 +1,6 @@
 package ch.sebooom.domain.stockexchange.simulator;
 
-import ch.sebooom.domain.stockexchange.StockExchangeEntity;
+import ch.sebooom.domain.simulator.StockExchangeEntity;
 import ch.sebooom.domain.stockexchange.matierespremieres.model.Operation;
 import ch.sebooom.domain.stockexchange.matierespremieres.model.Prix;
 import ch.sebooom.domain.stockexchange.matierespremieres.model.Variation;

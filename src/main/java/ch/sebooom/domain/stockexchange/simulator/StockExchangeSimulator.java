@@ -1,17 +1,11 @@
 package ch.sebooom.domain.stockexchange.simulator;
 
-import ch.sebooom.domain.stockexchange.StockExchangeEntity;
+import ch.sebooom.domain.simulator.StockExchangeEntity;
 import ch.sebooom.domain.stockexchange.matierespremieres.impl.MatierePremieresRepositoryImpl;
 import ch.sebooom.domain.stockexchange.matierespremieres.impl.MatierePremieresServiceImpl;
 import ch.sebooom.domain.stockexchange.matierespremieres.model.MatierePremiere;
-import ch.sebooom.domain.stockexchange.matierespremieres.model.Prix;
 import ch.sebooom.domain.stockexchange.matierespremieres.service.MatierePremiereService;
-
-import com.google.common.base.Preconditions;
 import rx.Observable;
-
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -20,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.FileHandler;
 import java.util.logging.Logger;
-import java.util.stream.Collector;
+
 import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toList;
@@ -28,6 +22,11 @@ import static java.util.stream.Collectors.toList;
 import java.io.File;
 import java.text.SimpleDateFormat;
 
+/**
+ * Simulateur de valeurs boursieres
+ * @author sce
+ *
+ */
 public class StockExchangeSimulator {
 
 	//Entites a traiter
@@ -48,24 +47,44 @@ public class StockExchangeSimulator {
 	MatierePremiereService service;
 	
 	
-	
+	/**
+	 * Constructeur par défaut
+	 * Charge les données via les données du domaine en mémoire
+	 */
 	public StockExchangeSimulator(){
 		
 	    service = new MatierePremieresServiceImpl(new MatierePremieresRepositoryImpl());
 	    this.entities = convertToSimulatorItem(service.getAllMatieresPremieres());
 
 	}
-
-
-	private List<SimulatorItem> convertToSimulatorItem(List<MatierePremiere> matPrems){
+	
+	/**
+	 * Constructeur permettant de passe une liste d'éléments externe
+	 * @param entities la liste des éléments à traiter
+	 */
+	public StockExchangeSimulator(List<StockExchangeEntity> entities){
 		
-		return matPrems.stream()
+	    this.entities = convertToSimulatorItem(entities);
+	}
+
+
+	/**
+	 * Convertir les éléments <code>StockExchangeEntity</code> en éléments pour le simulateur
+	 * @param entities les éléments à convertir
+	 * @return la liste des éléments simulateur
+	 */
+	private List<SimulatorItem> convertToSimulatorItem(List<StockExchangeEntity> entities){
+		
+		return entities.stream()
 				.map(matierePremiere -> {
 					return SimulatorItem.from(matierePremiere);
 				})
 				.collect(Collectors.toList());
 	}
 	
+	/**
+	 * Initialisation de l'application
+	 */
 	private static void init(){
 		File file = new File("logs");
 		if (!file.exists()) {
@@ -93,9 +112,6 @@ public class StockExchangeSimulator {
 		
 		init();
 		
-		
-		
-
 		StockExchangeSimulator sim = new StockExchangeSimulator();
 		
 		sim.start()
@@ -145,10 +161,6 @@ public class StockExchangeSimulator {
 	private void randomSleep() throws InterruptedException {
 		TimeUnit.MILLISECONDS.sleep(SimulatorUtil.getRandomIntBeetween(MIN_SLEEP_MS, MAX_SLEEP_MS));
 	}
-
-
-
-	
 
 
 }
