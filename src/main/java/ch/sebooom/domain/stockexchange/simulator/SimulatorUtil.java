@@ -1,8 +1,8 @@
 package ch.sebooom.domain.stockexchange.simulator;
 
-import ch.sebooom.domain.stockexchange.prix.Operation;
-
 import java.util.Random;
+
+import ch.sebooom.domain.stockexchange.matierespremieres.model.Operation;
 
 public class SimulatorUtil {
 	

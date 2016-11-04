@@ -1,9 +1,10 @@
 package ch.sebooom.domain.stockexchange.simulator;
 
 import ch.sebooom.domain.stockexchange.StockExchangeEntity;
-import ch.sebooom.domain.stockexchange.prix.Operation;
-import ch.sebooom.domain.stockexchange.prix.Prix;
-import ch.sebooom.domain.stockexchange.prix.Variation;
+import ch.sebooom.domain.stockexchange.matierespremieres.model.Operation;
+import ch.sebooom.domain.stockexchange.matierespremieres.model.Prix;
+import ch.sebooom.domain.stockexchange.matierespremieres.model.Variation;
+
 import com.google.common.base.Preconditions;
 
 /**
@@ -110,12 +111,10 @@ public class SimulatorItem {
         switch(this.operation()){
             case ADD:
                 newPrix = lastPrix + (lastPrix * tauxVariation);
-                System.out.println("ADD:");
                 break;
 
             case SUBSTRACT:
                 newPrix = lastPrix - (lastPrix * tauxVariation);
-                System.out.println("SUBTRACT:");
                 break;
 
             default: throw new IllegalArgumentException();
